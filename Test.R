@@ -1,3 +1,4 @@
+Print("Hello teamspoRt")
 
 usethis::use_git_config(user.name = "An3an",
                         user.email = "andrean337@gmail.com")
@@ -10,5 +11,6 @@ usethis::use_git()
 gitcreds::gitcreds_set()
 
 
-Print("Hello teamspoRt")
+
+
 
