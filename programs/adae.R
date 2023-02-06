@@ -26,12 +26,16 @@ ex <- convert_blanks_to_na(ex)
 
 format_agegr1 <- function(x) {
   case_when(
-    x <=65 ~ "<65",
+    x < 65 ~ "<65",
     between(x, 65, 80) ~ "65-80",
-    x > 80 ~ ">85",
+    x > 80 ~ ">80",
     TRUE ~ "Missing"
   )
 }
+
+table(adsl$AGE) ##Very useful!
+
+
 
 #AGEGR1N
 
@@ -40,7 +44,7 @@ format_agegr1n <- function(x) {
     x = "<65" ~ 1,
     x = "65-80" ~ 2,
     x = ">85" ~ 3,
-    TRUE ~ "Missing"
+    TRUE ~ NA ##Note, missing values
   )
 }
 
@@ -55,7 +59,7 @@ format_racer1n <- function(x) {
     x == "BLACK OR AFRICAN AMERICAN" ~ 3,
     x == "NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER" ~ 5,
     x == "WHITE" ~ 6,
-    TRUE ~ "Missing"
+    TRUE ~ NA ##Note, missing values
   )
 }
 
@@ -155,6 +159,8 @@ treatmenrEmergentFlag <- derive_var_trtemfl(
   initial_intensity = NULL,
   intensity = NULL
 )
+
+#is.na =
 
 
 
