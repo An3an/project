@@ -147,7 +147,7 @@ adae <- derive_vars_duration(
 
 # Derive treatment emergent analysis flag (TRTEMFL)
 
-treatmenrEmergentFlag <- derive_var_trtemfl(
+adae <- derive_var_trtemfl(
   adae,
   new_var = TRTEMFL,
   start_date = ASTDT,
@@ -160,9 +160,13 @@ treatmenrEmergentFlag <- derive_var_trtemfl(
   intensity = NULL
 )
 
-#is.na =
 
+##Replacing the NA treatment emergent flag with "N"
+adae$TRTEMFL <- adae$TRTEMFL %>% replace_na('N')
 
+###Checking whether all the NA's are replaced with "N"
+
+table(adae$TRTEMFL) ##Very useful!
 
 
 
