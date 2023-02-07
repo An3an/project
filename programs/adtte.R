@@ -21,14 +21,14 @@ library(xportr)
 
 #Importing datasets
 adsl <- read_xpt("adam/adsl.xpt")
-ae <- read_xpt("sdtm/ae.xpt")
+adae <- read_xpt("adam/adae.xpt")
 
 #Need ADAE complete to program, using admiral SDTM.AE in the mean time
 
 
 #Creating shell of program before ADAE is complete
 adsl_vars<-c("AGE","RACE","SAFFL","SEX","SITEID","RFSTDTC","STUDYID","TRT01A",
-             "TRT01AN","TRTEDT","TRT01P","TRTSDT","USUBJID")
+             "TRT01AN","TRTEDT","TRT01P","TRTSDT","USUBJID","RFENDT")
 
 adae_vars<-c("ASTDT","USUBJID","ADT","TRTEMFL","PARAM","PARAMCD","AVAL","AGEGR1","AGEGR1N","RACEN","TRTDUR")
 
@@ -58,14 +58,47 @@ adae<-adae %>% select(all_of(adae_vars))
 
 
 # Get list of ADSL vars required for derivations
-adsl_vars1<-vars(AGE,RACE,SAFFL,SEX,SITEID,RFSTDTC,STUDYID,TRT01A,
-             TRT01AN,TRTEDT,TRT01P,TRTSDT,USUBJID)
+adsl_vars1<-vars(RFSTDTC,STUDYID,USUBJID,RFENDT)
 
-
+#Merge together adsl and adae
 work_adtte <- adae %>%
   derive_vars_merged(
     dataset_add = adsl,
     new_vars = adsl_vars1,
-    by_vars = vars(STUDYID,USUBJID),
+    by_vars = vars(STUDYID,USUBJID,`SITEID`),
     filter_add = CQ01NAM == "DERMATOLOGIC EVENTS",
   )
+
+#time to adverse event derivation
+
+ttae <- event_source(
+  dataset_name = "adae",
+  date = ASTDT,
+  set_values_to = vars(
+    EVNTDESC = "Dematologic Event Occured",
+    SRCDOM = "ADAE",
+    SRCVAR = "AESTDTC",
+    SRCSEQ = AESEQ
+  )
+)
+
+eos <- censor_source(
+  dataset_name = "adsl",
+  date = RFENDT,
+  set_values_to = vars(
+    EVNTDESC = "Study Completion Date",
+    SRCDOM = "ADSL",
+    SRCVAR = "RFENDT" #might need to convet RFENDTC to date format
+  )
+)
+param_tte<-derive_param_tte(
+  dataset_adsl = adsl,
+  by_vars = vars(CQ01NAM),
+  start_date = TRTSDT,
+  event_conditions = list(ttae),
+  censor_conditions = list(eos),
+  source_datasets = list(adsl = adsl, adae = adae),
+  set_values_to = vars(
+    PARAMCD = paste0("TTAE", as.numeric(as.factor(CQ01NAM))),
+    PARAM = paste("Time to First", CQ01NAM, "Adverse Event")))
+
