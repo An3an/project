@@ -24,17 +24,8 @@ adsl <- read_xpt("adam/adsl.xpt")
 adae <- read_xpt("adam/adae.xpt")
 
 #where AEDECOD in
-adae<-adae%>%filter(AEDECOD %in% c('APPLICATION', 'DERMATITIS', 'ERYTHEMA', 'BLISTER') )
+adae<-adae%>%filter(CQ01NAM %in% c("DERMATOLOGIC EVENTS") )
 
-#Need ADAE complete to program, using admiral SDTM.AE in the mean time
-
-
-#Creating shell of program before ADAE is complete
-adsl_vars<-c("AGE","RACE","SAFFL","SEX","SITEID","RFSTDTC","STUDYID","TRT01A",
-             "TRT01AN","TRTEDT","TRT01P","TRTSDT","USUBJID","RFENDT")
-
-#"AGEGR1" ,"AGEGR1N","RACEN","TRTDUR"add later
-adae_vars<-c("ASTDT","USUBJID","TRTEMFL","STUDYID","USUBJID","SITEID","AEDECOD","AESEQ")
 
 #Functions from admiral (just for reference):
 #censor_source,convert_blanks_to_na,derive_param_tte,list_tte_source_objects,params,tte_source
@@ -57,9 +48,6 @@ param_lookup <- tibble::tribble(
    "TTDE","Time to First Dermatologic Event"
 )
 
-#subsetting datasets (not necessary but easier to look at when programming)
-adsl<-adsl %>% select(all_of(adsl_vars))
-adae<-adae %>% select(all_of(adae_vars))
 
 
 # Get list of ADSL vars required for derivations
@@ -71,7 +59,7 @@ work_adtte <- adae %>%
     dataset_add = adsl,
     new_vars = adsl_vars1,
     by_vars = vars(STUDYID,USUBJID,SITEID),
-    #filter_add = CQ01NAM == "DERMATOLOGIC EVENTS",
+
   )
 
 #time to adverse event derivation
@@ -101,19 +89,18 @@ eos <- censor_source(
   )
 )
 
-#change AEDECOD to CQ01NAM once it is present in ADAE
-#deriving the ttde param using censor and event done above
+
 
 param_tte<-derive_param_tte(
   dataset_adsl = adsl,
-  by_vars = vars(AEDECOD),
+  by_vars = vars(CQ01NAM),
   start_date = TRTSDT,
   event_conditions = list(ttae),
   censor_conditions = list(eos),
   source_datasets = list(adsl = adsl, adae = adae),
   set_values_to = vars(
-    PARAMCD = paste0("TTDE", as.numeric(as.factor(AEDECOD))),
-    PARAM = paste("Time to First", AEDECOD)))
+    PARAMCD = paste0("TTDE"),
+    PARAM = paste("Time to First", CQ01NAM)))
 
 #deriving aval, remember R is case sensitive! (if you had multiple variables to derive you can do it all inside one mutate)
 
