@@ -54,11 +54,11 @@ format_agegr1n <- function(x) {
 
 format_racer1n <- function(x) {
   case_when(
-    x == "AMERICAN INDIAN OR ALASKA NATIVE" ~ 1,
-    x == "ASIAN" ~ 2,
-    x == "BLACK OR AFRICAN AMERICAN" ~ 3,
+    x == "AMERICAN INDIAN OR ALASKA NATIVE" ~ 6,
+    x == "ASIAN" ~ 3,
+    x == "BLACK OR AFRICAN AMERICAN" ~ 2,
     x == "NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER" ~ 5,
-    x == "WHITE" ~ 6
+    x == "WHITE" ~ 1
     #TRUE ~ NA ##Note, missing values
   )
 }
@@ -117,14 +117,8 @@ adae <- ae %>%
 
 #Deriving analysis start and end day (ASTDY, AENDY)
 
-dy <- derive_vars_dy(adae, reference_date = TRTSDT,
-                     source_vars = vars(ASTDT, AENDT, TRTSDT))
-
-
-adae %>% mutate(
-  ASTDY = dy$ASTDY,
-  AENDY =dy$AENDY
-)
+adae <- derive_vars_dy(adae, reference_date = TRTSDT,
+                     source_vars = vars(ASTDT, AENDT))
 
 
 #Deriving AE duration and AE duration units (ADURN, ADURU)
@@ -132,15 +126,19 @@ adae %>% mutate(
 adae <- derive_vars_duration(
   adae,
   new_var = ADURN,
-  new_var_unit = ADURNU,
+  new_var_unit = ADURU,
   start_date = ASTDT,
   end_date = AENDT,
   in_unit = "days",
-  out_unit = "days",
+ # out_unit = "days",
   floor_in = TRUE,
   add_one = TRUE,
   trunc_out = FALSE
 )
+
+##Changing "DAYS" to "DAY to be able to compare
+
+adae['ADURU'][adae['ADURU'] == 'DAYS'] <- 'DAY'
 
 
 # Derive treatment emergent analysis flag (TRTEMFL)
@@ -159,11 +157,6 @@ adae <- derive_var_trtemfl(
 )
 
 
-##Replacing the NA treatment emergent flag with "N"
-adae$TRTEMFL <- adae$TRTEMFL %>% replace_na('N')
-
-###Checking whether all the NA's are replaced with "N"
-
 table(adae$TRTEMFL) ##Very useful!
 
 ###Deriving 1st Occurrence of Any AE Flag (AOCCFL)
@@ -172,22 +165,16 @@ adae <-  restrict_derivation(
       dataset = adae,
       derivation = derive_var_extreme_flag,
       args = params(
-      by_vars = vars(USUBJID, ASTDT,AESEQ),
-      order = vars(ASTDT, AESEQ),
+      by_vars = vars(USUBJID),
+      order = vars(USUBJID,ASTDT,AESEQ),
       new_var = AOCCFL,
       mode = "first"
     ),
     filter = TRTEMFL == "Y"
   )
 
-##Replacing the NA AOCCFL flag with "N"
+table(adae$AOCCFL)
 
-adae$AOCCFL <- adae$AOCCFL %>% replace_na('N')
-
-
-###Checking whether all the NA's are replaced with "N"
-
-table(adae$AOCCFL) ##Very useful!
 
 
 ###Deriving 1st Occurrence of Any AE Flag (AOCCSFL)
@@ -196,8 +183,8 @@ adae <-  restrict_derivation(
   dataset = adae,
   derivation = derive_var_extreme_flag,
   args = params(
-    by_vars = vars(USUBJID, AEBODSYS,ASTDT,AESEQ),
-    order = vars(AEBODSYS,ASTDT, AESEQ),
+    by_vars = vars(USUBJID,AEBODSYS),
+    order = vars(AEBODSYS,ASTDT,AESEQ),
     new_var = AOCCSFL,
     mode = "first"
   ),
@@ -205,14 +192,6 @@ adae <-  restrict_derivation(
 )
 
 
-##Replacing the NA AOCCSFL flag with "N"
-
-adae$AOCCSFL <- adae$AOCCSFL %>% replace_na('N')
-
-
-###Checking whether all the NA's are replaced with "N"
-
-table(adae$AOCCSFL) ##Very useful!
 
 
 ###Deriving 1st Occurrence of Preferred Term Flag (AOCCPFL)
@@ -221,8 +200,8 @@ adae <-  restrict_derivation(
   dataset = adae,
   derivation = derive_var_extreme_flag,
   args = params(
-    by_vars = vars(USUBJID, AEBODSYS,AEDECOD,ASTDT,AESEQ),
-    order = vars(AEBODSYS,AEDECOD,ASTDT, AESEQ),
+    by_vars = vars(USUBJID,AEBODSYS,AEDECOD),
+    order = vars(AEBODSYS,AEDECOD,ASTDT,AESEQ),
     new_var = AOCCPFL,
     mode = "first"
   ),
@@ -230,11 +209,6 @@ adae <-  restrict_derivation(
 )
 
 
-##Replacing the NA AOCCPFL flag with "N"
-
-adae$AOCCPFL <- adae$AOCCPFL %>% replace_na('N')
-
-table(adae$AOCCPFL) ##Very useful!
 
 
 ###Deriving 1st Occurrence of SeriousFlag (AOCC02FL)
@@ -243,8 +217,8 @@ adae <-  restrict_derivation(
   dataset = adae,
   derivation = derive_var_extreme_flag,
   args = params(
-    by_vars = vars(USUBJID, ASTDT,AESEQ),
-    order = vars(ASTDT, AESEQ),
+    by_vars = vars(ASTDT,AESEQ),
+    order = vars(USUBJID),
     new_var = AOCC02FL,
     mode = "first"
   ),
@@ -253,11 +227,7 @@ adae <-  restrict_derivation(
 )
 
 
-##Replacing the NA AOCC02FL flag with "N"
 
-adae$AOCC02FL <- adae$AOCC02FL %>% replace_na('N')
-
-table(adae$AOCC02FL) ##Very useful!
 
 
 ###Deriving 1st Occurrence of Serious SOC Flag (AOCC03FL)
@@ -266,8 +236,8 @@ adae <-  restrict_derivation(
   dataset = adae,
   derivation = derive_var_extreme_flag,
   args = params(
-    by_vars = vars(USUBJID,AEBODSYS, ASTDT,AESEQ),
-    order = vars(AEBODSYS,ASTDT, AESEQ),
+    by_vars = vars(AEBODSYS, ASTDT,AESEQ),
+    order = vars(USUBJID,AEBODSYS),
     new_var = AOCC03FL,
     mode = "first"
   ),
@@ -276,11 +246,6 @@ adae <-  restrict_derivation(
 )
 
 
-##Replacing the NA AOCC03FL flag with "N"
-
-adae$AOCC03FL <- adae$AOCC03FL %>% replace_na('N')
-
-table(adae$AOCC03FL) ##Very useful!
 
 
 ###Deriving 1st Occurrence of Serious PT Flag (AOCC04FL	)
@@ -289,8 +254,8 @@ adae <-  restrict_derivation(
   dataset = adae,
   derivation = derive_var_extreme_flag,
   args = params(
-    by_vars = vars(USUBJID,AEBODSYS,AEDECOD, ASTDT,AESEQ),
-    order = vars(AEBODSYS,AEDECOD,ASTDT, AESEQ),
+    by_vars = vars(AEBODSYS,AEDECOD, ASTDT,AESEQ),
+    order = vars(USUBJID,AEBODSYS,AEDECOD),
     new_var = AOCC04FL	,
     mode = "first"
   ),
@@ -299,23 +264,22 @@ adae <-  restrict_derivation(
 )
 
 
-##Replacing the NA AOCC04FL	 flag with "N"
-
-adae$AOCC04FL	 <- adae$AOCC04FL	 %>% replace_na('N')
-
-table(adae$AOCC04FL	) ##Very useful!
 
 
 ##Customized Query 01 Name derivation
 
 `%!in%` <- Negate(`%in%`)
 
-adae$CQ01NAM <-
-  ifelse ((adae$AEDECOD %in% c('APPLICATION', 'DERMATITIS', 'ERYTHEMA', 'BLISTER') |
-             adae$AEBODSYS %in% c('SKIN AND SUBC UTANEOUS TISSUE DISORDERS')) &
-            adae$AEDECOD %!in% c('COLD SWEAT', 'HYPERHIDROSIS', 'ALOPECIA'), 'DERMATOLOGIC EVENTS', NA)
 
-table(adae$CQ01NAM)
+adae$CQ01NAM <- ifelse (((grepl("APPLICATION*", adae$AEDECOD) | grepl("*DERMATITIS*", adae$AEDECOD)
+                         | grepl("*ERYTHEMA*", adae$AEDECOD) | grepl("*BLISTER*", adae$AEDECOD))|
+                         (adae$AEBODSYS %in% c('SKIN AND SUBCUTANEOUS TISSUE DISORDERS')))&
+                          ((-grepl("COLD SWEAT", adae$AEDECOD))| (-grepl("HYPERHIDROSIS", adae$AEDECOD))
+                           | (-grepl("ALOPECIA", adae$AEDECOD)))
+                         ,"DERMATOLOGIC EVENTS", NA)
+
+###Andrea to continue with the last bit of CQ01NAM tomorrow.
+
 
 #Deriving 1st Occurrence 01 Flag for CQ01 (AOCC01FL)
 
@@ -324,7 +288,7 @@ adae <-  restrict_derivation(
   derivation = derive_var_extreme_flag,
   args = params(
     by_vars = vars(USUBJID, ASTDT,AESEQ),
-    order = vars(ASTDT, AESEQ),
+    order = vars(USUBJID),
     new_var = AOCC01FL	,
     mode = "first"
   ),
@@ -333,9 +297,6 @@ adae <-  restrict_derivation(
 )
 
 
-##Replacing the NA AOCC01FL	 flag with "N"
-
-table(adae$AOCC01FL	) ##Very useful!
 
 
 adae <- adae %>%
