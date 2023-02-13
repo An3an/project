@@ -63,7 +63,6 @@ format_racer1n <- function(x) {
   )
 }
 
-format_racer1n(adae$RACE)
 
 # Get list of ADSL vars required for ADAE data set
 
@@ -112,12 +111,8 @@ adae <- ae %>%
    ) %>% mutate(
       ASTDT = astdt$ASTDT,
       ASTDTF = astdt$ASTDTF,
-      ASTDY = dy$ASTDY,
-      AENDT = aendt$AENDT,
-      AENDY =dy$AENDY
-
+      AENDT = aendt$AENDT
     )
-
 
 
 #Deriving analysis start and end day (ASTDY, AENDY)
@@ -353,3 +348,5 @@ adae <- adae %>%
 
 
 xportr_write(adae, "adam/adae.xpt")
+
+
