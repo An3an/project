@@ -347,6 +347,24 @@ adae <- adae %>%
 )
 
 
+
+
+
+
+###Removing columns not in the compare table
+
+to_remove <- c("DOMAIN", "AESPID", "AEBDSYCD","AEDTC", "AESTDTC", "AEENDTC",
+               "AESTDY","AEENDY")
+
+adae <- adae[ , !(names(adae) %in% to_remove)]
+
+###Renaming TRT01A and TRT01AN to TRTA and TRTAN
+
+colnames(adae)[c(29,30)] <- c("TRTA", "TRTAN")
+
+
+
+
 xportr_write(adae, "adam/adae.xpt")
 
 
