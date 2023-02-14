@@ -1,10 +1,12 @@
 library(haven)
+library(Hmisc)
 library(admiral)
 library(dplyr)
 library(tidyr)
 library(metacore)
 library(metatools)
 library(xportr)
+
 
 
 #Reading in all the data sets needed for ADAE
@@ -14,7 +16,7 @@ ae <- read_xpt("sdtm/ae.xpt")
 suppae <- read_xpt("sdtm/suppae.xpt")
 ex <- read_xpt("sdtm/ex.xpt")
 
-#Converting blanks to NA if there are any blanks present in these datasets
+#Converting blanks to NA if there are any blanks present in these data sets
 
 adsl <- convert_blanks_to_na(adsl)
 ae <- convert_blanks_to_na(ae)
@@ -33,7 +35,6 @@ format_agegr1 <- function(x) {
   )
 }
 
-table(adsl$AGE) ##Very useful!
 
 
 
@@ -268,15 +269,16 @@ adae <-  restrict_derivation(
 
 ##Customized Query 01 Name derivation
 
-`%!in%` <- Negate(`%in%`)
+#`%!in%` <- Negate(`%in%`)
 
 
-adae$CQ01NAM <- ifelse (((grepl("APPLICATION*", adae$AEDECOD) | grepl("*DERMATITIS*", adae$AEDECOD)
-                         | grepl("*ERYTHEMA*", adae$AEDECOD) | grepl("*BLISTER*", adae$AEDECOD))|
-                         (adae$AEBODSYS %in% c('SKIN AND SUBCUTANEOUS TISSUE DISORDERS')))&
-                          ((-grepl("COLD SWEAT", adae$AEDECOD))| (-grepl("HYPERHIDROSIS", adae$AEDECOD))
-                           | (-grepl("ALOPECIA", adae$AEDECOD)))
-                         ,"DERMATOLOGIC EVENTS", NA)
+adae$CQ01NAM <- ifelse (((grepl("APPLICATION", adae$AEDECOD) |
+                            grepl("DERMATITIS", adae$AEDECOD)|
+                            grepl("ERYTHEMA", adae$AEDECOD) |
+                            grepl("BLISTER", adae$AEDECOD)) |
+                           (adae$AEBODSYS %in% c('SKIN AND SUBCUTANEOUS TISSUE DISORDERS')))&
+                            adae$AEDECOD %nin% c('COLD SWEAT', 'HYPERHIDROSIS', 'ALOPECIA')
+                          ,"DERMATOLOGIC EVENTS", NA)
 
 ###Andrea to continue with the last bit of CQ01NAM tomorrow.
 
@@ -284,10 +286,10 @@ adae$CQ01NAM <- ifelse (((grepl("APPLICATION*", adae$AEDECOD) | grepl("*DERMATIT
 #Deriving 1st Occurrence 01 Flag for CQ01 (AOCC01FL)
 
 adae <-  restrict_derivation(
-  dataset = adae,
-  derivation = derive_var_extreme_flag,
-  args = params(
-    by_vars = vars(USUBJID, ASTDT,AESEQ),
+   dataset = adae,
+   derivation = derive_var_extreme_flag,
+   args = params(
+    by_vars = vars(ASTDT,AESEQ),
     order = vars(USUBJID),
     new_var = AOCC01FL	,
     mode = "first"
