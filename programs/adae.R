@@ -112,7 +112,10 @@ adae <- ae %>%
    ) %>% mutate(
       ASTDT = astdt$ASTDT,
       ASTDTF = astdt$ASTDTF,
-      AENDT = aendt$AENDT
+      AENDT = aendt$AENDT,
+      RACEN = format_racer1n(RACE),
+      AGEGR1 = format_agegr1(AGE),
+      AGEGR1N = format_agegr1n(AGEGR1)
     )
 
 
@@ -158,7 +161,6 @@ adae <- derive_var_trtemfl(
 )
 
 
-table(adae$TRTEMFL) ##Very useful!
 
 ###Deriving 1st Occurrence of Any AE Flag (AOCCFL)
 
@@ -173,9 +175,6 @@ adae <-  restrict_derivation(
     ),
     filter = TRTEMFL == "Y"
   )
-
-table(adae$AOCCFL)
-
 
 
 ###Deriving 1st Occurrence of Any AE Flag (AOCCSFL)
@@ -193,8 +192,6 @@ adae <-  restrict_derivation(
 )
 
 
-
-
 ###Deriving 1st Occurrence of Preferred Term Flag (AOCCPFL)
 
 adae <-  restrict_derivation(
@@ -208,8 +205,6 @@ adae <-  restrict_derivation(
   ),
   filter = TRTEMFL == "Y"
 )
-
-
 
 
 ###Deriving 1st Occurrence of SeriousFlag (AOCC02FL)
@@ -226,8 +221,6 @@ adae <-  restrict_derivation(
   filter = (TRTEMFL == "Y" &
   AESER == "Y")
 )
-
-
 
 
 
@@ -248,7 +241,6 @@ adae <-  restrict_derivation(
 
 
 
-
 ###Deriving 1st Occurrence of Serious PT Flag (AOCC04FL	)
 
 adae <-  restrict_derivation(
@@ -266,51 +258,33 @@ adae <-  restrict_derivation(
 
 
 
-
 ##Customized Query 01 Name derivation
 
 #`%!in%` <- Negate(`%in%`)
 
 
-adae$CQ01NAM <- ifelse (((grepl("APPLICATION", adae$AEDECOD) |
-                            grepl("DERMATITIS", adae$AEDECOD)|
-                            grepl("ERYTHEMA", adae$AEDECOD) |
-                            grepl("BLISTER", adae$AEDECOD)) |
+adae$CQ01NAM <- ifelse ((grepl("APPLICATION*|DERMATITIS|ERYTHEMA|BLISTER", adae$AEDECOD) |
                            (adae$AEBODSYS %in% c('SKIN AND SUBCUTANEOUS TISSUE DISORDERS')))&
-                            adae$AEDECOD %nin% c('COLD SWEAT', 'HYPERHIDROSIS', 'ALOPECIA')
+                            (adae$AEDECOD %nin% c('COLD SWEAT', 'HYPERHIDROSIS', 'ALOPECIA'))
                           ,"DERMATOLOGIC EVENTS", NA)
 
-###Andrea to continue with the last bit of CQ01NAM tomorrow.
+
 
 
 #Deriving 1st Occurrence 01 Flag for CQ01 (AOCC01FL)
 
 adae <-  restrict_derivation(
-   dataset = adae,
-   derivation = derive_var_extreme_flag,
-   args = params(
-    by_vars = vars(ASTDT,AESEQ),
-    order = vars(USUBJID),
-    new_var = AOCC01FL	,
+    dataset = adae,
+    derivation = derive_var_extreme_flag,
+    args = params(
+    by_vars = vars(USUBJID),
+    order = vars(USUBJID,ASTDT,AESEQ),
+    new_var = AOCC01FL,
     mode = "first"
+
   ),
-  filter = (is.na(CQ01NAM) &
-              TRTEMFL == "Y")
+  filter = (CQ01NAM == "DERMATOLOGIC EVENTS" & TRTEMFL == "Y" )
 )
-
-
-
-
-adae <- adae %>%
-    mutate(
-    RACEN = format_racer1n(RACE),
-    AGEGR1 = format_agegr1(AGE),
-    AGEGR1N = format_agegr1n(AGEGR1)
-
-)
-
-
-
 
 
 
@@ -321,13 +295,11 @@ to_remove <- c("DOMAIN", "AESPID", "AEBDSYCD","AEDTC", "AESTDTC", "AEENDTC",
 
 adae <- adae[ , !(names(adae) %in% to_remove)]
 
+
 ###Renaming TRT01A and TRT01AN to TRTA and TRTAN
 
 colnames(adae)[c(29,30)] <- c("TRTA", "TRTAN")
 
 
 
-
 xportr_write(adae, "adam/adae.xpt")
-
-
