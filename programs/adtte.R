@@ -5,8 +5,8 @@
 # Input: adsl, adae
 
 #Import packages needed
-pckgs<-c("admiral","admiral.test","dplyer","lubridate","stringr","haven","tidyr","metacore","metatools","xportr")
-install.packages(pckgs)
+# pckgs<-c("admiral","admiral.test","dplyer","lubridate","stringr","haven","tidyr","metacore","metatools","xportr")
+# install.packages(pckgs)
 
 #Packages to be used
 library(admiral)
@@ -23,16 +23,19 @@ library(xportr)
 adsl <- read_xpt("adam/adsl.xpt")
 adae <- read_xpt("adam/adae.xpt")
 
-#where AEDECOD in
-adae<-adae%>%filter(CQ01NAM %in% c("DERMATOLOGIC EVENTS") )
+#Creating shell of program before ADAE is complete
+adsl_vars<-c("AGE","RACE","SAFFL","SEX","SITEID","RFSTDTC","STUDYID","TRT01A",
+             "TRT01AN","TRTEDT","TRT01P","TRTSDT","USUBJID","RFENDT")
 
+#"AGEGR1" ,"AGEGR1N","RACEN","TRTDUR"add later
+adae_vars<-c("ASTDT","USUBJID","TRTEMFL","STUDYID","USUBJID","SITEID","AEDECOD","AESEQ","CQ01NAM")
 
 #Functions from admiral (just for reference):
 #censor_source,convert_blanks_to_na,derive_param_tte,list_tte_source_objects,params,tte_source
 
 #Import spec
 
-adtte_spec <- readxl::read_xlsx("/cloud/project/metadata/specs.xlsx", sheet = "Variables")  %>%
+adtte_spec <- readxl::read_xlsx("./metadata/specs.xlsx", sheet = "Variables")  %>%
   dplyr::rename(type = "Data Type") %>%
   rlang::set_names(tolower) %>%
   mutate(format = str_to_lower(format))  %>%
@@ -48,10 +51,16 @@ param_lookup <- tibble::tribble(
    "TTDE","Time to First Dermatologic Event"
 )
 
+#subsetting datasets (not necessary but easier to look at when programming)
+adsl<-adsl %>% select(all_of(adsl_vars))
+adae<-adae %>% select(all_of(adae_vars))
 
 
 # Get list of ADSL vars required for derivations
 adsl_vars1<-vars(RFSTDTC,STUDYID,USUBJID,RFENDT,SITEID)
+
+# adae_vars1<-vars(ASTDT,USUBJID,TRTEMFL,STUDYID,USUBJID,SITEID,AEDECOD,"AESEQ","CQ01NAM")
+
 
 #Merge together adsl and adae
 work_adtte <- adae %>%
@@ -59,20 +68,21 @@ work_adtte <- adae %>%
     dataset_add = adsl,
     new_vars = adsl_vars1,
     by_vars = vars(STUDYID,USUBJID,SITEID),
-
+    #filter_add = CQ01NAM == "DERMATOLOGIC EVENTS",
   )
+
 
 #time to adverse event derivation
 
 #events
 ttae <- event_source(
   dataset_name = "adae",
-  filter= TRTEMFL=="Y",
+  filter= CQ01NAM=="DERMATOLOGIC EVENTS",
   date = ASTDT,
   set_values_to = vars(
-    EVNTDESC = "Dermatologic Event Occured",
+    EVNTDESC = "Dematologic Event Occured",
     SRCDOM = "ADAE",
-    SRCVAR = "AESTDTC",
+    SRCVAR = "ASTDT",
     SRCSEQ = AESEQ
   )
 )
@@ -89,18 +99,18 @@ eos <- censor_source(
   )
 )
 
-
+#deriving the ttde param using censor and event done above
 
 param_tte<-derive_param_tte(
   dataset_adsl = adsl,
-  by_vars = vars(CQ01NAM),
+  source_datasets = list(adsl = adsl, adae = adae),
   start_date = TRTSDT,
   event_conditions = list(ttae),
   censor_conditions = list(eos),
-  source_datasets = list(adsl = adsl, adae = adae),
+  subject_keys = vars(USUBJID,STUDYID,SITEID),
   set_values_to = vars(
-    PARAMCD = paste0("TTDE"),
-    PARAM = paste("Time to First", CQ01NAM)))
+    PARAMCD = "TTDE",
+    PARAM = "Time to First Dermatologic Event"))
 
 #deriving aval, remember R is case sensitive! (if you had multiple variables to derive you can do it all inside one mutate)
 
@@ -112,15 +122,25 @@ param_tte1<-param_tte %>% mutate(
 
 adtte_vars=vars(EVNTDESC,SRCDOM,SRCSEQ,CNSR,ADT,STARTDT,PARAMCD,PARAM,AVAL)
 
-adtte_<-left_join(work_adtte,param_tte1,by=c("USUBJID","STUDYID"),multiple="all")
+adtte_<-left_join(param_tte1,work_adtte,by=c("USUBJID","STUDYID","SITEID"),multiple="all")
+
+#taking first obs (check spec)
+adtte_<-adtte_%>%arrange(USUBJID,ASTDT)%>%group_by(USUBJID)%>%slice(1)
 
 #using the spec to include only the variables we need
 
-variables <- adtte_spec[['variable']]
-
 #update to all_of when we have all the variables needed in ADSL/ADAE
 
-adtte<-adtte_%>%select(any_of(variables))
+variables<-c("STUDYID","SITEID","USUBJID","PARAM","PARAMCD","AVAL","STARTDT","ADT","CNSR","EVNTDESC","SRCDOM","SRCVAR","SRCSEQ")
 
-#exporting to xpt
-xportr_write(adtte, "adam/adtte.xpt")
+adtte_<-convert_blanks_to_na(adtte_)
+
+adtte<-adtte_%>%select(any_of(variables))%>%
+  xportr_type(adtte_spec, "ADTTE") %>%
+  xportr_label(adtte_spec, "ADTTE") %>%
+  xportr_format(adtte_spec, "ADTTE") %>%
+  xportr_length(adtte_spec, "ADTTE") %>%
+  xportr_write("adam/adtte.xpt", label = "AE Time To 1st Derm. Event Analysis")
+
+
+help("xportr_format")
