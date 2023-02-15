@@ -6,7 +6,7 @@ library(tidyr)
 library(metacore)
 library(metatools)
 library(xportr)
-
+library(stringr)
 
 
 #Reading in all the data sets needed for ADAE
@@ -22,6 +22,18 @@ adsl <- convert_blanks_to_na(adsl)
 ae <- convert_blanks_to_na(ae)
 suppae <- convert_blanks_to_na(suppae)
 ex <- convert_blanks_to_na(ex)
+
+# Importing specifications
+
+adae_spec <- readxl::read_xlsx("./metadata/specs.xlsx", sheet = "Variables")  %>%
+  dplyr::rename(type = "Data Type") %>%
+  rlang::set_names(tolower) %>%
+  mutate(format = str_to_lower(format))  %>%
+  filter(dataset == 'ADAE') %>%
+  filter(!variable %in% c('ADAE')) %>%
+  mutate(
+    type = if_else(type == 'text','character', 'numeric')
+  )
 
 #Creating variables
 #AGEGR1
@@ -75,6 +87,7 @@ adsl_vars <- vars(STUDYID, SITEID, USUBJID, TRT01A, TRT01AN, AGE
 #Creating astdt
 
 
+
 astdt <- derive_vars_dt(
   ae,
   new_vars_prefix = "AST",
@@ -86,6 +99,7 @@ astdt <- derive_vars_dt(
   max_dates = NULL,
   preserve = FALSE
 )
+
 
 #Creating aendt
 aendt <- derive_vars_dt(
@@ -99,8 +113,6 @@ aendt <- derive_vars_dt(
   max_dates = NULL,
   preserve = FALSE
 )
-
-
 
 
 adae <- ae %>%
@@ -219,7 +231,7 @@ adae <-  restrict_derivation(
     mode = "first"
   ),
   filter = (TRTEMFL == "Y" &
-  AESER == "Y")
+            AESER == "Y")
 )
 
 
@@ -284,22 +296,19 @@ adae <-  restrict_derivation(
 
   ),
   filter = (CQ01NAM == "DERMATOLOGIC EVENTS" & TRTEMFL == "Y" )
-)
+) %>% mutate(
+  TRTA = TRT01A,
+  TRTAN = TRT01AN
+) %>%
+  select(adae_spec$variable) %>%
+  xportr_type(adae_spec, "ADAE") %>%
+  xportr_label(adae_spec, "ADAE") %>%
+  xportr_format(adae_spec, "ADAE") %>%
+  xportr_length(adae_spec, "ADAE") %>%
+  xportr_write("adam/adae.xpt", label = "Adverse Events Analysis Dataset")
 
 
 
-###Removing columns not in the compare table
-
-to_remove <- c("DOMAIN", "AESPID", "AEBDSYCD","AEDTC", "AESTDTC", "AEENDTC",
-               "AESTDY","AEENDY")
-
-adae <- adae[ , !(names(adae) %in% to_remove)]
-
-
-###Renaming TRT01A and TRT01AN to TRTA and TRTAN
-
-colnames(adae)[c(29,30)] <- c("TRTA", "TRTAN")
 
 
 
-xportr_write(adae, "adam/adae.xpt")
