@@ -40,7 +40,7 @@ adtte_spec <- readxl::read_xlsx("./metadata/specs.xlsx", sheet = "Variables")  %
   rlang::set_names(tolower) %>%
   mutate(format = str_to_lower(format))  %>%
   filter(dataset == 'ADTTE') %>%
-  filter(!variable %in% c('ADTTE','AGEGR1', 'AGEGR1N', 'RACEN')) %>%
+
   mutate(
     type = if_else(type == 'text','character', 'numeric')
   )
