@@ -92,12 +92,10 @@ astdt <- derive_vars_dt(
   ae,
   new_vars_prefix = "AST",
   AESTDTC,
-  highest_imputation = "Y",
+  highest_imputation = "D",
   date_imputation = "first",
   flag_imputation = "auto",
-  min_dates = NULL,
-  max_dates = NULL,
-  preserve = FALSE
+
 )
 
 
@@ -109,9 +107,7 @@ aendt <- derive_vars_dt(
   highest_imputation = "n",
   date_imputation = "last", ##Check: use "last" option
   flag_imputation = "auto",
-  min_dates = NULL,
-  max_dates = NULL,
-  preserve = FALSE
+
 )
 
 
@@ -154,8 +150,10 @@ adae <- derive_vars_duration(
 
 ##Changing "DAYS" to "DAY to be able to compare
 
-adae['ADURU'][adae['ADURU'] == 'DAYS'] <- 'DAY'
 
+adae$ADURU <- ifelse(!is.na(adae$ASTDTF),NA,adae$ADURU)
+adae$ADURN <- ifelse(!is.na(adae$ASTDTF),NA,adae$ADURN)
+adae['ADURU'][adae['ADURU'] == 'DAYS'] <- 'DAY'
 
 # Derive treatment emergent analysis flag (TRTEMFL)
 
@@ -171,6 +169,8 @@ adae <- derive_var_trtemfl(
   initial_intensity = NULL,
   intensity = NULL
 )
+
+adae$TRTEMFL <- ifelse (is.na(adae$ASTDT), NA, adae$TRTEMFL)
 
 
 
@@ -304,10 +304,15 @@ adae <-  restrict_derivation(
   xportr_type(adae_spec, "ADAE") %>%
   xportr_label(adae_spec, "ADAE") %>%
   xportr_format(adae_spec, "ADAE") %>%
-  xportr_length(adae_spec, "ADAE") %>%
-  xportr_write("adam/adae.xpt", label = "Adverse Events Analysis Dataset")
+  xportr_length(adae_spec, "ADAE")
 
 
+adae <- adae %>% mutate(
+        TRTSDT = as.Date(TRTSDT, origin = "1970-01-01"),
+        TRTEDT = as.Date(TRTEDT, origin = "1970-01-01"),
+        ASTDT = as.Date(ASTDT, origin = "1970-01-01"),
+        AENDT = as.Date(AENDT, origin = "1970-01-01")
+) %>% xportr_write("adam/adae.xpt", label = "Adverse Events Analysis Dataset")
 
 
 
