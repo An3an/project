@@ -28,7 +28,7 @@ adsl_vars<-c("AGE","RACE","SAFFL","SEX","SITEID","RFSTDTC","STUDYID","TRT01A",
              "TRT01AN","TRTEDT","TRT01P","TRTSDT","USUBJID","RFENDT")
 
 #"AGEGR1" ,"AGEGR1N","RACEN","TRTDUR"add later
-adae_vars<-c("ASTDT","USUBJID","TRTEMFL","STUDYID","USUBJID","SITEID","AEDECOD","AESEQ","CQ01NAM")
+adae_vars<-c("ASTDT","USUBJID","TRTEMFL","STUDYID","USUBJID","SITEID","AEDECOD","AESEQ","CQ01NAM","AGEGR1" ,"AGEGR1N","RACEN","TRTDUR")
 
 #Functions from admiral (just for reference):
 #censor_source,convert_blanks_to_na,derive_param_tte,list_tte_source_objects,params,tte_source
@@ -51,9 +51,6 @@ param_lookup <- tibble::tribble(
    "TTDE","Time to First Dermatologic Event"
 )
 
-#subsetting datasets (not necessary but easier to look at when programming)
-adsl<-adsl %>% select(all_of(adsl_vars))
-adae<-adae %>% select(all_of(adae_vars))
 
 
 # Get list of ADSL vars required for derivations
@@ -131,8 +128,7 @@ adtte_<-adtte_%>%arrange(USUBJID,ASTDT)%>%group_by(USUBJID)%>%slice(1)
 
 #update to all_of when we have all the variables needed in ADSL/ADAE
 
-variables<-c("STUDYID","SITEID","USUBJID","PARAM","PARAMCD","AVAL","STARTDT","ADT","CNSR","EVNTDESC","SRCDOM","SRCVAR","SRCSEQ")
-
+variables<-adtte_spec$variable
 adtte_<-convert_blanks_to_na(adtte_)
 
 adtte<-adtte_%>%select(any_of(variables))%>%
@@ -143,4 +139,3 @@ adtte<-adtte_%>%select(any_of(variables))%>%
   xportr_write("adam/adtte.xpt", label = "AE Time To 1st Derm. Event Analysis")
 
 
-help("xportr_format")
