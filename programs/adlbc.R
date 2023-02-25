@@ -71,7 +71,7 @@ supplb <- convert_blanks_to_na(supplb)
 adsl_vars <- vars(TRTSDT, TRTEDT)
 
 adlbc_dt_dy <- lb %>%
-  filter(LBCAT == "CHEMISTRY") %>%
+  filter(LBCAT == "CHEMISTRY" & VISIT != 'AMBUL ECG REMOVAL' & VISIT != 'RETRIEVAL') %>%
   # Join ADSL with LB (need TRTSDT for ADY derivation)
   derive_vars_merged(
     dataset_add = adsl,
@@ -126,7 +126,7 @@ mutate(
   R2A1LO = AVAL / A1LO,
   ANRLO = LBSTNRLO,
   ANRHI = LBSTNRHI,
-  ALBTRVAL = pmax(LBSTRESN - (1.5 * A1HI), (0.5 * A1LO) - LBSTRESN),
+  ALBTRVAL = pmax((1.5 * A1HI) - LBSTRESN, LBSTRESN - (0.5 * A1LO)),
 ) %>%
 derive_vars_merged_lookup(
   dataset_add = param_lookup,
@@ -140,14 +140,13 @@ adlbc_anrind <- adlbc_paramcd %>%
   derive_var_anrind() %>%
   mutate(
     ANRIND = case_when(
-      ANRIND == "NORMAL" ~ "N",
-      ANRIND == "LOW" ~ "L",
-      ANRIND == "HIGH" ~ "H",
-      TRUE ~ NA_character_
+      AVAL > 1.5*A1HI ~ 'H',
+      AVAL <0.5*A1LO ~ 'L',
+      AVAL>=0.5*A1LO & AVAL<=1.5*A1HI ~ 'N',
+      is.na(AVAL) ~ 'N',
+      TRUE ~ NA
     )
   )
-
-
 
 ## Get visit info
 
@@ -169,9 +168,7 @@ adlbc_visit <- adlbc_anrind %>%
 # Derive baseline flags ----
 adlbc_ablfl <- adlbc_visit %>%
   mutate(
-    ANL01FL = if_else(is.na(AVISITN),NA_character_, 'Y'),
-    ABLFL = LBBLFL,
-
+    ABLFL = LBBLFL
   ) %>%
   # Last value in treatment visit
   restrict_derivation(
@@ -223,10 +220,21 @@ adlbc_base_chg <- adlbc_ablfl %>%
     by_vars = vars(STUDYID, USUBJID, PARAMCD),
     source_var = R2A1HI,
     new_var = BR2A1HI
-  )
+  ) %>%
+  #Derive analysis flag
+  restrict_derivation(
+    derivation = derive_var_extreme_flag,
+    args = params(
+      by_vars = vars(STUDYID, USUBJID, PARAMCD),
+      order = vars(ALBTRVAL, desc(ADY)),
+      new_var = ANL01FL,
+      mode = "last"
+  ),
+  filter = (!is.na(ALBTRVAL) & is.na(ABLFL) & AVISITN<26)
+)
 
 adlbc_visit_end <- adlbc_base_chg %>%
-  filter(ANL01FL == "Y") %>%
+  filter(!is.na(AVISITN)) %>%
   filter(ADT>=TRTSDT,AVISITN < 26, AVISITN >= 2) %>%
   group_by(USUBJID, PARAMCD) %>%
   slice_max(ADY) %>%
@@ -249,18 +257,19 @@ adlbc <- union(adlbc_base_chg,adlbc_visit_end) %>%
     TRTPN = TRT01PN,
     RACEN = format_racer1n(RACE),
     AGEGR1 = format_agegr1(AGE),
-    AGEGR1N = format_agegr1n(AGEGR1)
+    AGEGR1N = format_agegr1n(AGEGR1),
+    ADT = as.numeric(ADT) + 3653,
+    TRTEDT = as.numeric(TRTEDT) + 3653,
+    TRTSDT = as.numeric(TRTSDT) + 3653
   ) %>%
   select(adlbc_spec$variable) %>%
   #xportr_type(adlbc_spec, "ADLBC") %>%
   xportr_label(adlbc_spec, "ADLBC") %>%
-  xportr_format(adlbc_spec, "ADLBC") %>%
+  #xportr_format(adlbc_spec, "ADLBC") %>%
   xportr_length(adlbc_spec, "ADLBC") %>%
   xportr_write("adam/adlbc.xpt", label = "Analysis Dataset Lab Blood Chemistry")
 
 
-
-check <- adlbc %>% distinct(PARAM, PARAMN)
 
 
 
