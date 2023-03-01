@@ -144,7 +144,7 @@ adlbc_anrind <- adlbc_paramcd %>%
       AVAL <0.5*A1LO ~ 'L',
       AVAL>=0.5*A1LO & AVAL<=1.5*A1HI ~ 'N',
       is.na(AVAL) ~ 'N',
-      TRUE ~ NA
+      TRUE ~ NA_character_
     )
   )
 
@@ -199,7 +199,7 @@ adlbc_base_chg <- adlbc_ablfl %>%
   # Calculate CHG
   mutate(
     CHG = case_when(
-      ABLFL=="Y" ~ NA,
+      ABLFL=="Y" ~ NA_real_,
       TRUE ~ AVAL - BASE
     )
     )%>%

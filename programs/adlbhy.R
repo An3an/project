@@ -168,6 +168,8 @@ adlbhy_ablfl <- adlbhy_visit %>%
     filter = (AVISITN>0 & AVISITN<=24)
   )
 
+
+
 ## Derive baseline information ----
 adlbhy_base_chg <- adlbhy_ablfl %>%
   # Calculate BR2A1LO
@@ -187,6 +189,14 @@ adlbhy_base_chg <- adlbhy_ablfl %>%
     by_vars = vars(STUDYID, USUBJID, PARAMCD),
     source_var = ANRIND,
     new_var = BNRIND
+  )
+
+NULL_data <- adlbhy_base_chg %>%
+  select(USUBJID, PARAMCD, AVISIT, AVAL) %>%
+  filter(is.na(AVAL)) %>%
+  mutate(
+    PARAMCD = "BILIHY",
+    Miss = "missing"
   )
 
 adlbhy_paramtyp <- adlbhy_base_chg %>%
@@ -232,23 +242,29 @@ adlbhy_paramtyp <- adlbhy_base_chg %>%
       PARCAT1 = "HYLAW"
     ),
     filter = !is.na(AVISIT)
-  ) %>%
+  )
+
+merged_adlbhy_paramtyp <- merge(adlbhy_paramtyp,
+                                NULL_data, by = c("USUBJID", "PARAMCD", "AVISIT"),
+                                all.x=TRUE, all.y=TRUE) %>%
   mutate(
     AVAL = case_when(
-      PARAMTYP == "DERIVED" ~ AVAL,
-      TRUE ~ AVAL2)
-    ) %>%
-# Calculate BASE
-derive_var_base(
-  by_vars = vars(STUDYID, USUBJID, PARAMCD),
-  source_var = AVAL,
-  new_var = BASE
-)%>%
- # Calculate SHIFT
-  # derive_var_shift(new_var = SHIFT1,
-  #                  from_var = BASE,
-  #                  to_var = AVAL) %>%
+      Miss == "missing" ~ NA_real_,
+      PARAMTYP == "DERIVED" ~ AVAL.x,
+      TRUE ~ AVAL2
+    )
+  ) %>%
+  # Calculate BASE
+  derive_var_base(
+    by_vars = vars(STUDYID, USUBJID, PARAMCD),
+    source_var = AVAL,
+    new_var = BASE
+  )%>%
   mutate(
+    BASE = case_when(
+      PARAMTYP == "DERIVED" & is.na(AVAL) ~ NA_real_,
+      TRUE ~ BASE
+    ),
     SHIFT1 = case_when(
       PARAMTYP != "DERIVED" ~ "",
       BASE == 0 & AVAL == 0 ~ "Normal to Normal",
@@ -258,18 +274,18 @@ derive_var_base(
       TRUE ~ ""
     ),
     SHIFT1N = case_when(
-      PARAMTYP != "DERIVED" ~ NA,
+      PARAMTYP != "DERIVED" ~ NA_real_,
       BASE == 0 & AVAL == 0 ~ 1,
       BASE == 0 & AVAL == 1 ~ 2,
       BASE == 1 & AVAL == 0 ~ 0,
-      BASE == 1 & AVAL == 1 ~ NA,
-      TRUE ~ NA
+      BASE == 1 & AVAL == 1 ~ NA_real_,
+      TRUE ~ NA_real_
     )
   )
 
 
 # Add all ADSL variables, apply spec properties, create xpt ----
-adlbhy <- adlbhy_paramtyp %>%
+adlbhy <- merged_adlbhy_paramtyp %>%
   filter(!is.na(AVISIT) & AVISITN < 26) %>%
   derive_vars_merged(
     dataset_add = select(adsl, !!!negate_vars(adsl_vars)),
